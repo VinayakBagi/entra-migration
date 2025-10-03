@@ -2,9 +2,6 @@ import { prisma } from "../config/index.js";
 import { logger } from "../utils/logger.js";
 
 class UserService {
-  /**
-   * Get user by ID
-   */
   async getUserById(userId) {
     try {
       return await prisma.user.findUnique({
@@ -16,9 +13,6 @@ class UserService {
     }
   }
 
-  /**
-   * Get user by email
-   */
   async getUserByEmail(email) {
     try {
       return await prisma.user.findUnique({
@@ -30,9 +24,6 @@ class UserService {
     }
   }
 
-  /**
-   * Get users for migration
-   */
   async getUsersForMigration(limit = null, onlyActive = true) {
     try {
       const where = {
@@ -59,9 +50,6 @@ class UserService {
     }
   }
 
-  /**
-   * Mark user as migrated
-   */
   async markUserAsMigrated(userId, entraUserId) {
     try {
       return await prisma.user.update({
@@ -77,9 +65,6 @@ class UserService {
     }
   }
 
-  /**
-   * Get migration statistics
-   */
   async getMigrationStats() {
     try {
       const total = await prisma.user.count();

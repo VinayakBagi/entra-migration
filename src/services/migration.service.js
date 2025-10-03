@@ -4,14 +4,10 @@ import { generateSecurePassword } from "../utils/passwordGenerator.js";
 import { logger } from "../utils/logger.js";
 
 class MigrationService {
-  /**
-   * Migrate a single user with temporary password
-   */
   async migrateSingleUser(userId, options = {}) {
     const { sendEmail = false } = options;
 
     try {
-      // Get user from database
       const user = await userService.getUserById(userId);
 
       if (!user) {
@@ -52,7 +48,6 @@ class MigrationService {
 
       logger.info(`Successfully migrated user: ${user.email}`);
 
-      // TODO: Send email with temporary password
       if (sendEmail) {
         // await sendPasswordResetEmail(user.email, temporaryPassword);
         logger.info(`Password reset email sent to: ${user.email}`);
@@ -63,7 +58,7 @@ class MigrationService {
         userId: user.id,
         email: user.email,
         entraUserId: entraUser.id,
-        temporaryPassword: temporaryPassword, // ⚠️ Store securely or send via email
+        temporaryPassword: temporaryPassword,
       };
     } catch (error) {
       logger.error(`Failed to migrate user ${userId}`, error);
@@ -74,9 +69,6 @@ class MigrationService {
     }
   }
 
-  /**
-   * Bulk migrate users with temporary passwords
-   */
   async bulkMigrate(options = {}) {
     const {
       batchSize = 50,
@@ -144,7 +136,6 @@ class MigrationService {
           // Mark as migrated
           await userService.markUserAsMigrated(user.id, entraUser.id);
 
-          // TODO: Send email
           if (sendEmails) {
             // await sendPasswordResetEmail(user.email, temporaryPassword);
           }
@@ -155,7 +146,7 @@ class MigrationService {
             email: user.email,
             status: "success",
             entraUserId: entraUser.id,
-            temporaryPassword: temporaryPassword, // ⚠️ Handle securely
+            temporaryPassword: temporaryPassword,
           };
         } catch (error) {
           failed++;
@@ -194,9 +185,6 @@ class MigrationService {
     };
   }
 
-  /**
-   * Get migration progress
-   */
   async getMigrationProgress() {
     return await userService.getMigrationStats();
   }

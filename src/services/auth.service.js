@@ -6,9 +6,7 @@ import { generateSecurePassword } from "../utils/passwordGenerator.js";
 import { logger } from "../utils/logger.js";
 
 class AuthService {
-  /**
-   * Login with JIT (Just-in-Time) - this migrates the user's actual password during login
-   */
+  // Login with JIT (Just-in-Time) - this migrates the user's actual password during login
   async loginWithJIT(email, password) {
     try {
       const user = await userService.getUserByEmail(email);
@@ -35,11 +33,10 @@ class AuthService {
         try {
           const entraUser = await graphService.createUser(
             user,
-            password, // Their actual plaintext password
+            password, // actual plaintext password
             false // Don't force password change
           );
 
-          // Mark as migrated
           await userService.markUserAsMigrated(user.id, entraUser.id);
 
           logger.info(`JIT Migration successful for ${email}`);

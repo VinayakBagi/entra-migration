@@ -43,9 +43,6 @@ class GraphService {
     return this.client;
   }
 
-  /**
-   * Check if user exists in Entra External ID
-   */
   async userExists(email) {
     try {
       const users = await this.client
@@ -62,9 +59,6 @@ class GraphService {
     }
   }
 
-  /**
-   * Create user in Entra External ID
-   */
   async createUser(userData, password, forcePasswordChange = true) {
     try {
       const timestamp = Date.now();
@@ -98,9 +92,6 @@ class GraphService {
     }
   }
 
-  /**
-   * Get user from Entra by email
-   */
   async getUserByEmail(email) {
     try {
       const users = await this.client
@@ -118,5 +109,4 @@ class GraphService {
   }
 }
 
-// Export singleton instance
 export default new GraphService();
