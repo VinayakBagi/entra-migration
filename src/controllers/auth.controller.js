@@ -2,7 +2,7 @@ import authService from "../services/auth.service.js";
 import { logger } from "../utils/logger.js";
 
 class AuthController {
-  login = async (req, res) => {
+  loginWithJIT = async (req, res) => {
     try {
       const { email, password } = req.body;
 

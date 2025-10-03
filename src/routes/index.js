@@ -6,5 +6,6 @@ const router = express.Router();
 
 router.use("/migration", migrationRoutes);
 router.use("/auth", authRoutes);
+router.use("/password", passwordRoutes);
 
 export default router;

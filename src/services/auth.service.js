@@ -76,14 +76,6 @@ class AuthService {
       };
     }
   }
-
-  /**
-   * Standard login (after migration complete)
-   */
-  async login(email, password) {
-    // For now, use JIT migration approach
-    return this.loginWithJIT(email, password);
-  }
 }
 
 export default new AuthService();
