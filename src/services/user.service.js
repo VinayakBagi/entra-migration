@@ -43,11 +43,16 @@ class UserService {
         where.isActive = true;
       }
 
-      return await prisma.user.findMany({
+      const query = {
         where,
-        take: limit,
         orderBy: { createdAt: "asc" },
-      });
+      };
+
+      if (limit) {
+        query.take = limit;
+      }
+
+      return await prisma.user.findMany(query);
     } catch (error) {
       logger.error("Error fetching users for migration", error);
       throw error;
