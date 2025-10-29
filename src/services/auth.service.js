@@ -14,7 +14,7 @@ class AuthService {
       if (!user) {
         return {
           success: false,
-          error: "Invalid email or password",
+          error: "Invalid email",
         };
       }
 
@@ -23,7 +23,7 @@ class AuthService {
       if (!isPasswordValid) {
         return {
           success: false,
-          error: "Invalid email or password",
+          error: "Invalid password",
         };
       }
 
