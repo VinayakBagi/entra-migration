@@ -124,7 +124,7 @@ class MigrationService {
           }
 
           // Generate temporary password
-          const temporaryPassword = generateSecurePassword();
+          const temporaryPassword = "Test@123"; //generateSecurePassword();
 
           // Create in Entra
           const entraUser = await graphService.createUser(
