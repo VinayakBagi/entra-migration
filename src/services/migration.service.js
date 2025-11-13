@@ -77,6 +77,9 @@ class MigrationService {
       sendEmails = false,
     } = options;
 
+    // await this.disableSignupInUserFlow("bc8c1d14-0092-43df-b75a-8b0b6bc997d9");
+    // await this.disableSignupInUserFlow("5aa1f68c-88cd-441f-9663-ba07e907f731");
+
     logger.info("Starting bulk migration...");
 
     // Fetch users to migrate
@@ -187,6 +190,25 @@ class MigrationService {
 
   async getMigrationProgress() {
     return await userService.getMigrationStats();
+  }
+
+  async disableSignupInUserFlow(applicationId) {
+    if (!applicationId) {
+      throw new Error("Application ID is required to disable signup");
+    }
+
+    try {
+      // Step 1: Get the user flow ID associated with the application
+      const userFlowId = "e389bd3c-fe74-4eed-9b9b-e46d571756c8";
+
+      // Step 2: Update the user flow to disable signup
+      await graphService.updateUserFlowSignupSettings(userFlowId, false);
+
+      logger.info("Signup disabled successfully in user flow");
+    } catch (error) {
+      logger.error("Error disabling signup in user flow", error);
+      throw error;
+    }
   }
 }
 

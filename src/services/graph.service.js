@@ -107,6 +107,37 @@ class GraphService {
       return null;
     }
   }
+
+  /**
+   * Update user flow signup settings
+   * @param {string} userFlowId - The user flow ID
+   * @param {boolean} isSignUpAllowed - Whether signup should be allowed
+   */
+  async updateUserFlowSignupSettings(userFlowId, isSignUpAllowed) {
+    try {
+      const requestBody = {
+        "@odata.type":
+          "#microsoft.graph.externalUsersSelfServiceSignUpEventsFlow",
+        onInteractiveAuthFlowStart: {
+          "@odata.type":
+            "#microsoft.graph.onInteractiveAuthFlowStartExternalUsersSelfServiceSignUp",
+          isSignUpAllowed: isSignUpAllowed,
+        },
+      };
+
+      await this.client
+        .api(`/identity/authenticationEventsFlows/${userFlowId}`)
+        .version("beta") // This API is in beta
+        .patch(requestBody);
+
+      logger.info(
+        `User flow ${userFlowId} updated: isSignUpAllowed = ${isSignUpAllowed}`
+      );
+    } catch (error) {
+      logger.error("Error updating user flow signup settings", error);
+      throw error;
+    }
+  }
 }
 
 export default new GraphService();
