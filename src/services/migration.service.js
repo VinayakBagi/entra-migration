@@ -192,6 +192,59 @@ class MigrationService {
     return await userService.getMigrationStats();
   }
 
+  async changeEntraUserPassword(userId, currentPassword, newPassword) {
+    try {
+      if (!userId) {
+        return {
+          success: false,
+          error: "User ID is required",
+        };
+      }
+
+      if (!newPassword) {
+        return {
+          success: false,
+          error: "New password is required",
+        };
+      }
+
+      const user = await userService.getUserById(userId);
+
+      if (!user) {
+        return {
+          success: false,
+          error: "User not found",
+        };
+      }
+
+      if (!user.migratedToEntra || !user.entraUserId) {
+        return {
+          success: false,
+          error: "User has not been migrated to Entra",
+        };
+      }
+
+      await graphService.changeUserPassword(
+        user.entraUserId,
+        currentPassword,
+        newPassword
+      );
+
+      return {
+        success: true,
+        userId: user.id,
+        email: user.email,
+        message: "Password changed successfully",
+      };
+    } catch (error) {
+      logger.error(`Failed to change password for user ${userId}`, error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
   async disableSignupInUserFlow(applicationId) {
     if (!applicationId) {
       throw new Error("Application ID is required to disable signup");

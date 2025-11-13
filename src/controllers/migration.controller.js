@@ -103,6 +103,52 @@ class MigrationController {
       });
     }
   };
+
+  changeEntraUserPassword = async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const { currentPassword, newPassword } = req.body;
+
+      if (isNaN(userId)) {
+        return res.status(400).json({
+          error: "Invalid user ID",
+        });
+      }
+
+      if (!newPassword) {
+        return res.status(400).json({
+          error: "New password is required",
+        });
+      }
+
+      const result = await migrationService.changeEntraUserPassword(
+        userId,
+        currentPassword,
+        newPassword
+      );
+
+      if (result.success) {
+        res.json({
+          message: result.message || "Password changed successfully",
+          data: {
+            userId: result.userId,
+            email: result.email,
+          },
+        });
+      } else {
+        res.status(400).json({
+          error: "Password change failed",
+          details: result.error,
+        });
+      }
+    } catch (error) {
+      logger.error("Entra password change error", error);
+      res.status(500).json({
+        error: "Password change failed",
+        details: error.message,
+      });
+    }
+  };
 }
 
 export default new MigrationController();

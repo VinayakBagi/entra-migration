@@ -15,6 +15,12 @@ router.get("/progress", migrationController.getProgress);
 // POST /api/migration/start
 router.post("/start", migrationController.startBulkMigration);
 
+// POST /api/migration/user/:userId/change-password (must come before /user/:userId)
+router.post(
+  "/user/:userId/change-password",
+  migrationController.changeEntraUserPassword
+);
+
 // POST /api/migration/user/:userId
 router.post("/user/:userId", migrationController.migrateSingleUser);
 

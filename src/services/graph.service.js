@@ -138,6 +138,37 @@ class GraphService {
       throw error;
     }
   }
+
+  async changeUserPassword(entraUserId, currentPassword, newPassword) {
+    if (!entraUserId) {
+      throw new Error("Entra user ID is required to change password");
+    }
+
+    if (!newPassword) {
+      throw new Error("New password is required to change password");
+    }
+
+    try {
+      await this.client
+        .api(`/users/${entraUserId}/changePassword`)
+        .post({
+          currentPassword,
+          newPassword,
+        });
+
+      logger.info(`Password changed for Entra user: ${entraUserId}`);
+      return {
+        success: true,
+        message: "Password changed successfully",
+      };
+    } catch (error) {
+      logger.error(
+        `Failed to change password for Entra user: ${entraUserId}`,
+        error
+      );
+      throw error;
+    }
+  }
 }
 
 export default new GraphService();
