@@ -43,7 +43,7 @@ class AuthController {
     });
   };
 
-  checkDummyUser = async (req, res) => {
+  checkDummyUserFirstSignIn = async (req, res) => {
     try {
       logger.info("=== Received Authentication Request ===");
       logger.info("Request Body:", req.body);
