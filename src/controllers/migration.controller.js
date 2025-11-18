@@ -107,7 +107,7 @@ class MigrationController {
   changeEntraUserPassword = async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
-      const { currentPassword, newPassword } = req.body;
+      const { currentPassword, newPassword, accessToken } = req.body;
 
       if (isNaN(userId)) {
         return res.status(400).json({
@@ -121,10 +121,17 @@ class MigrationController {
         });
       }
 
+      if (!accessToken) {
+        return res.status(400).json({
+          error: "Access token is required",
+        });
+      }
+
       const result = await migrationService.changeEntraUserPassword(
         userId,
         currentPassword,
-        newPassword
+        newPassword,
+        accessToken
       );
 
       if (result.success) {

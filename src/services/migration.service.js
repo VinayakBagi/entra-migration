@@ -192,7 +192,12 @@ class MigrationService {
     return await userService.getMigrationStats();
   }
 
-  async changeEntraUserPassword(userId, currentPassword, newPassword) {
+  async changeEntraUserPassword(
+    userId,
+    currentPassword,
+    newPassword,
+    accessToken
+  ) {
     try {
       if (!userId) {
         return {
@@ -205,6 +210,13 @@ class MigrationService {
         return {
           success: false,
           error: "New password is required",
+        };
+      }
+
+      if (!accessToken) {
+        return {
+          success: false,
+          error: "Access token is required",
         };
       }
 
@@ -224,8 +236,8 @@ class MigrationService {
         };
       }
 
-      await graphService.changeUserPassword(
-        user.entraUserId,
+      await graphService.changePasswordWithAccessToken(
+        accessToken,
         currentPassword,
         newPassword
       );

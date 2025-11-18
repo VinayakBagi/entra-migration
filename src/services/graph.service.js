@@ -149,12 +149,10 @@ class GraphService {
     }
 
     try {
-      await this.client
-        .api(`/users/${entraUserId}/changePassword`)
-        .post({
-          currentPassword,
-          newPassword,
-        });
+      await this.client.api(`/users/${entraUserId}/changePassword`).post({
+        currentPassword,
+        newPassword,
+      });
 
       logger.info(`Password changed for Entra user: ${entraUserId}`);
       return {
@@ -166,6 +164,42 @@ class GraphService {
         `Failed to change password for Entra user: ${entraUserId}`,
         error
       );
+      throw error;
+    }
+  }
+
+  async changePasswordWithAccessToken(
+    accessToken,
+    currentPassword,
+    newPassword
+  ) {
+    if (!accessToken) {
+      throw new Error("Access token is required to change password");
+    }
+
+    if (!newPassword) {
+      throw new Error("New password is required to change password");
+    }
+
+    const client = Client.init({
+      authProvider: (done) => {
+        done(null, accessToken);
+      },
+    });
+
+    try {
+      await client.api("/me/changePassword").post({
+        currentPassword,
+        newPassword,
+      });
+
+      logger.info("Password changed via delegated access token");
+      return {
+        success: true,
+        message: "Password changed successfully",
+      };
+    } catch (error) {
+      logger.error("Failed to change password with access token", error);
       throw error;
     }
   }
