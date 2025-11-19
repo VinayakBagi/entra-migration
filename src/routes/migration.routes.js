@@ -17,7 +17,7 @@ router.post("/start", migrationController.startBulkMigration);
 
 // POST /api/migration/user/:userId/change-password (must come before /user/:userId)
 router.post(
-  "/user/:userId/change-password",
+  "/user/change-password",
   migrationController.changeEntraUserPassword
 );
 

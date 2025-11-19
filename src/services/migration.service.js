@@ -193,19 +193,11 @@ class MigrationService {
   }
 
   async changeEntraUserPassword(
-    userId,
     currentPassword,
     newPassword,
-    accessToken
+    userPrincipalName
   ) {
     try {
-      if (!userId) {
-        return {
-          success: false,
-          error: "User ID is required",
-        };
-      }
-
       if (!newPassword) {
         return {
           success: false,
@@ -213,45 +205,32 @@ class MigrationService {
         };
       }
 
-      if (!accessToken) {
+      if (!userPrincipalName) {
         return {
           success: false,
-          error: "Access token is required",
+          error: "userPrincipalName is required",
         };
       }
 
-      const user = await userService.getUserById(userId);
-
-      if (!user) {
-        return {
-          success: false,
-          error: "User not found",
-        };
-      }
-
-      if (!user.migratedToEntra || !user.entraUserId) {
-        return {
-          success: false,
-          error: "User has not been migrated to Entra",
-        };
-      }
-
-      await graphService.changePasswordWithAccessToken(
-        accessToken,
+      await graphService.changeUserPasswordWithROPC(
+        userPrincipalName,
         currentPassword,
         newPassword
       );
 
       return {
         success: true,
-        userId: user.id,
-        email: user.email,
+        userPrincipalName: userPrincipalName,
         message: "Password changed successfully",
       };
     } catch (error) {
-      logger.error(`Failed to change password for user ${userId}`, error);
+      logger.error(
+        `Failed to change password for user with userPrincipalName ${userPrincipalName}`,
+        error
+      );
       return {
         success: false,
+        userPrincipalName: userPrincipalName,
         error: error.message,
       };
     }

@@ -10,6 +10,13 @@ class GraphService {
     this.initialize();
   }
 
+  // ============================================
+  // INITIALIZATION
+  // ============================================
+
+  /**
+   * Initialize the Graph client with application credentials
+   */
   initialize() {
     try {
       const credential = new ClientSecretCredential(
@@ -36,6 +43,10 @@ class GraphService {
     }
   }
 
+  /**
+   * Get the Graph client instance
+   * @returns {Client} Microsoft Graph client
+   */
   getClient() {
     if (!this.client) {
       this.initialize();
@@ -43,6 +54,15 @@ class GraphService {
     return this.client;
   }
 
+  // ============================================
+  // USER MANAGEMENT
+  // ============================================
+
+  /**
+   * Check if a user exists by email
+   * @param {string} email - User's email address
+   * @returns {Promise<boolean>} Whether user exists
+   */
   async userExists(email) {
     try {
       const users = await this.client
@@ -59,6 +79,16 @@ class GraphService {
     }
   }
 
+  /**
+   * Create a new user in Entra ID
+   * @param {Object} userData - User data object
+   * @param {string} userData.username - Username
+   * @param {string} userData.email - Email address
+   * @param {boolean} userData.isActive - Whether account is active
+   * @param {string} password - Initial password
+   * @param {boolean} forcePasswordChange - Force password change on first login
+   * @returns {Promise<Object>} Created user object
+   */
   async createUser(userData, password, forcePasswordChange = true) {
     try {
       const timestamp = Date.now();
@@ -92,6 +122,11 @@ class GraphService {
     }
   }
 
+  /**
+   * Get user by email address
+   * @param {string} email - User's email address
+   * @returns {Promise<Object|null>} User object or null
+   */
   async getUserByEmail(email) {
     try {
       const users = await this.client
@@ -109,9 +144,345 @@ class GraphService {
   }
 
   /**
+   * Get user by Entra user ID
+   * @param {string} userId - Entra user ID
+   * @returns {Promise<Object|null>} User object or null
+   */
+  async getUserById(userId) {
+    try {
+      const user = await this.client.api(`/users/${userId}`).get();
+      return user;
+    } catch (error) {
+      logger.error(`Error fetching user by ID: ${userId}`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Update user properties
+   * @param {string} userId - Entra user ID
+   * @param {Object} updates - Properties to update
+   * @returns {Promise<Object>} Updated user object
+   */
+  async updateUser(userId, updates) {
+    try {
+      await this.client.api(`/users/${userId}`).patch(updates);
+
+      logger.info(`User updated in Entra: ${userId}`);
+      return { success: true, message: "User updated successfully" };
+    } catch (error) {
+      logger.error(`Failed to update user in Entra: ${userId}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete user from Entra ID
+   * @param {string} userId - Entra user ID
+   * @returns {Promise<Object>} Result object
+   */
+  async deleteUser(userId) {
+    try {
+      await this.client.api(`/users/${userId}`).delete();
+
+      logger.info(`User deleted from Entra: ${userId}`);
+      return { success: true, message: "User deleted successfully" };
+    } catch (error) {
+      logger.error(`Failed to delete user from Entra: ${userId}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Enable or disable user account
+   * @param {string} userId - Entra user ID
+   * @param {boolean} enabled - Whether account should be enabled
+   * @returns {Promise<Object>} Result object
+   */
+  async setUserAccountEnabled(userId, enabled) {
+    try {
+      await this.client.api(`/users/${userId}`).patch({
+        accountEnabled: enabled,
+      });
+
+      logger.info(
+        `User account ${enabled ? "enabled" : "disabled"}: ${userId}`
+      );
+      return {
+        success: true,
+        message: `User account ${
+          enabled ? "enabled" : "disabled"
+        } successfully`,
+      };
+    } catch (error) {
+      logger.error(`Failed to update user account status: ${userId}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * List all users with optional filtering
+   * @param {Object} options - Query options
+   * @param {number} options.top - Number of users to return
+   * @param {string} options.filter - OData filter string
+   * @param {string} options.select - Properties to select
+   * @returns {Promise<Array>} Array of user objects
+   */
+  async listUsers(options = {}) {
+    try {
+      let request = this.client.api("/users");
+
+      if (options.top) {
+        request = request.top(options.top);
+      }
+
+      if (options.filter) {
+        request = request.filter(options.filter);
+      }
+
+      if (options.select) {
+        request = request.select(options.select);
+      }
+
+      const result = await request.get();
+      return result.value || [];
+    } catch (error) {
+      logger.error("Error listing users from Entra", error);
+      throw error;
+    }
+  }
+
+  // ============================================
+  // PASSWORD MANAGEMENT
+  // ============================================
+
+  /**
+   * Get delegated access token using ROPC flow
+   * @param {string} email - User's email
+   * @param {string} password - User's password
+   * @returns {Promise<string>} Access token
+   */
+  async getDelegatedAccessToken(userPrincipalName, password) {
+    // Extract tenant subdomain from tenantName
+    // If tenantName is "devmtyfranchise.onmicrosoft.com", extract "devmtyfranchise"
+    // If tenantName is already "devmtyfranchise", use as is
+    let tenantSubdomain = entraConfig.tenantName;
+    if (tenantSubdomain.includes(".onmicrosoft.com")) {
+      tenantSubdomain = tenantSubdomain.replace(".onmicrosoft.com", "");
+    }
+
+    // For Entra External ID (CIAM), use ciamlogin.com
+    // URL format: https://{tenant-subdomain}.ciamlogin.com/{tenant-id}/oauth2/v2.0/token
+    const tokenEndpoint = `https://${tenantSubdomain}.ciamlogin.com/${entraConfig.tenantId}/oauth2/v2.0/token`;
+
+    logger.info(`Token endpoint: ${tokenEndpoint}`);
+
+    const params = new URLSearchParams({
+      client_id: entraConfig.clientId,
+      client_secret: entraConfig.clientSecret,
+      scope:
+        "https://graph.microsoft.com/Directory.AccessAsUser.All offline_access openid",
+      username: userPrincipalName,
+      password: password,
+      grant_type: "password",
+    });
+
+    const response = await fetch(tokenEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      logger.error("Failed to get delegated access token", error);
+      throw new Error(error.error_description || "Authentication failed");
+    }
+
+    const data = await response.json();
+    return data.access_token;
+  }
+
+  /**
+   * Change user password using ROPC flow (all in backend)
+   * Uses the user's current password to authenticate and then changes it
+   * @param {string} userPrincipalName - User's userPrincipalName
+   * @param {string} currentPassword - User's current password
+   * @param {string} newPassword - New password to set
+   * @returns {Promise<Object>} Result object
+   */
+  async changeUserPasswordWithROPC(
+    userPrincipalName,
+    currentPassword,
+    newPassword
+  ) {
+    if (!userPrincipalName) {
+      throw new Error("userPrincipalName is required to change password");
+    }
+
+    if (!currentPassword) {
+      throw new Error("Current password is required");
+    }
+
+    if (!newPassword) {
+      throw new Error("New password is required");
+    }
+
+    try {
+      // Step 1: Authenticate user and get delegated token
+      const accessToken = await this.getDelegatedAccessToken(
+        userPrincipalName,
+        currentPassword
+      );
+
+      // Step 2: Create client with delegated token
+      const client = Client.init({
+        authProvider: (done) => {
+          done(null, accessToken);
+        },
+      });
+
+      // Step 3: Change password using Graph API
+      await client.api("/me/microsoft.graph.changePassword").post({
+        currentPassword,
+        newPassword,
+      });
+
+      logger.info(
+        `Password changed successfully for user: ${userPrincipalName}`
+      );
+      return {
+        success: true,
+        message: "Password changed successfully",
+      };
+    } catch (error) {
+      logger.error(
+        `Failed to change password for user: ${userPrincipalName}`,
+        error
+      );
+
+      // Provide better error messages
+      if (error.message.includes("invalid_grant")) {
+        throw new Error("Current password is incorrect");
+      }
+      if (error.message.includes("AADSTS50126")) {
+        throw new Error("Invalid username or password");
+      }
+      if (error.message.includes("AADSTS50076")) {
+        throw new Error(
+          "Multi-factor authentication is required. Please use the frontend password change flow."
+        );
+      }
+      if (error.message.includes("AADSTS700016")) {
+        throw new Error("Application not found or not configured correctly");
+      }
+      if (error.message.includes("AADSTS65001")) {
+        throw new Error("User has not consented to the required permissions");
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Change password using a pre-obtained access token
+   * Use this when frontend provides the access token
+   * @param {string} accessToken - Delegated access token with Directory.AccessAsUser.All scope
+   * @param {string} currentPassword - User's current password
+   * @param {string} newPassword - New password to set
+   * @returns {Promise<Object>} Result object
+   */
+  async changePasswordWithAccessToken(
+    accessToken,
+    currentPassword,
+    newPassword
+  ) {
+    if (!accessToken) {
+      throw new Error("Access token is required to change password");
+    }
+
+    if (!currentPassword) {
+      throw new Error("Current password is required");
+    }
+
+    if (!newPassword) {
+      throw new Error("New password is required to change password");
+    }
+
+    const client = Client.init({
+      authProvider: (done) => {
+        done(null, accessToken);
+      },
+    });
+
+    try {
+      await client.api("/me/microsoft.graph.changePassword").post({
+        currentPassword,
+        newPassword,
+      });
+
+      logger.info("Password changed via delegated access token");
+      return {
+        success: true,
+        message: "Password changed successfully",
+      };
+    } catch (error) {
+      logger.error("Failed to change password with access token", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Admin reset user password (without knowing current password)
+   * Requires User.ReadWrite.All application permission + User Administrator role
+   * @param {string} userId - Entra user ID
+   * @param {string} newPassword - New password to set
+   * @param {boolean} forceChangeOnNextSignIn - Force password change on next sign-in
+   * @returns {Promise<Object>} Result object
+   */
+  async adminResetUserPassword(
+    userId,
+    newPassword,
+    forceChangeOnNextSignIn = false
+  ) {
+    if (!userId) {
+      throw new Error("User ID is required to reset password");
+    }
+
+    if (!newPassword) {
+      throw new Error("New password is required");
+    }
+
+    try {
+      await this.client.api(`/users/${userId}`).patch({
+        passwordProfile: {
+          forceChangePasswordNextSignIn: forceChangeOnNextSignIn,
+          password: newPassword,
+        },
+      });
+
+      logger.info(`Password reset by admin for user: ${userId}`);
+      return {
+        success: true,
+        message: "Password reset successfully",
+      };
+    } catch (error) {
+      logger.error(`Failed to reset password for user: ${userId}`, error);
+      throw error;
+    }
+  }
+
+  // ============================================
+  // USER FLOW MANAGEMENT
+  // ============================================
+
+  /**
    * Update user flow signup settings
    * @param {string} userFlowId - The user flow ID
    * @param {boolean} isSignUpAllowed - Whether signup should be allowed
+   * @returns {Promise<void>}
    */
   async updateUserFlowSignupSettings(userFlowId, isSignUpAllowed) {
     try {
@@ -127,7 +498,7 @@ class GraphService {
 
       await this.client
         .api(`/identity/authenticationEventsFlows/${userFlowId}`)
-        .version("beta") // This API is in beta
+        .version("beta")
         .patch(requestBody);
 
       logger.info(
@@ -139,68 +510,187 @@ class GraphService {
     }
   }
 
-  async changeUserPassword(entraUserId, currentPassword, newPassword) {
-    if (!entraUserId) {
-      throw new Error("Entra user ID is required to change password");
-    }
-
-    if (!newPassword) {
-      throw new Error("New password is required to change password");
-    }
-
+  /**
+   * Get user flow by ID
+   * @param {string} userFlowId - The user flow ID
+   * @returns {Promise<Object>} User flow object
+   */
+  async getUserFlow(userFlowId) {
     try {
-      await this.client.api(`/users/${entraUserId}/changePassword`).post({
-        currentPassword,
-        newPassword,
+      const userFlow = await this.client
+        .api(`/identity/authenticationEventsFlows/${userFlowId}`)
+        .version("beta")
+        .get();
+
+      return userFlow;
+    } catch (error) {
+      logger.error(`Error fetching user flow: ${userFlowId}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * List all user flows
+   * @returns {Promise<Array>} Array of user flow objects
+   */
+  async listUserFlows() {
+    try {
+      const result = await this.client
+        .api("/identity/authenticationEventsFlows")
+        .version("beta")
+        .get();
+
+      return result.value || [];
+    } catch (error) {
+      logger.error("Error listing user flows", error);
+      throw error;
+    }
+  }
+
+  // ============================================
+  // GROUP MANAGEMENT
+  // ============================================
+
+  /**
+   * Get user's group memberships
+   * @param {string} userId - Entra user ID
+   * @returns {Promise<Array>} Array of group objects
+   */
+  async getUserGroups(userId) {
+    try {
+      const result = await this.client.api(`/users/${userId}/memberOf`).get();
+
+      return result.value || [];
+    } catch (error) {
+      logger.error(`Error fetching groups for user: ${userId}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add user to a group
+   * @param {string} groupId - Group ID
+   * @param {string} userId - User ID to add
+   * @returns {Promise<Object>} Result object
+   */
+  async addUserToGroup(groupId, userId) {
+    try {
+      await this.client.api(`/groups/${groupId}/members/$ref`).post({
+        "@odata.id": `https://graph.microsoft.com/v1.0/directoryObjects/${userId}`,
       });
 
-      logger.info(`Password changed for Entra user: ${entraUserId}`);
-      return {
-        success: true,
-        message: "Password changed successfully",
-      };
+      logger.info(`User ${userId} added to group ${groupId}`);
+      return { success: true, message: "User added to group successfully" };
+    } catch (error) {
+      logger.error(`Failed to add user ${userId} to group ${groupId}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove user from a group
+   * @param {string} groupId - Group ID
+   * @param {string} userId - User ID to remove
+   * @returns {Promise<Object>} Result object
+   */
+  async removeUserFromGroup(groupId, userId) {
+    try {
+      await this.client
+        .api(`/groups/${groupId}/members/${userId}/$ref`)
+        .delete();
+
+      logger.info(`User ${userId} removed from group ${groupId}`);
+      return { success: true, message: "User removed from group successfully" };
     } catch (error) {
       logger.error(
-        `Failed to change password for Entra user: ${entraUserId}`,
+        `Failed to remove user ${userId} from group ${groupId}`,
         error
       );
       throw error;
     }
   }
 
-  async changePasswordWithAccessToken(
-    accessToken,
-    currentPassword,
-    newPassword
-  ) {
-    if (!accessToken) {
-      throw new Error("Access token is required to change password");
+  // ============================================
+  // UTILITY METHODS
+  // ============================================
+
+  /**
+   * Validate password meets Entra ID requirements
+   * @param {string} password - Password to validate
+   * @returns {Object} Validation result
+   */
+  validatePassword(password) {
+    const errors = [];
+
+    if (!password || password.length < 8) {
+      errors.push("Password must be at least 8 characters long");
     }
 
-    if (!newPassword) {
-      throw new Error("New password is required to change password");
+    if (password.length > 256) {
+      errors.push("Password must be no more than 256 characters long");
     }
 
-    const client = Client.init({
-      authProvider: (done) => {
-        done(null, accessToken);
-      },
-    });
+    // Check for complexity (at least 3 of 4 categories)
+    let complexity = 0;
+    if (/[a-z]/.test(password)) complexity++;
+    if (/[A-Z]/.test(password)) complexity++;
+    if (/[0-9]/.test(password)) complexity++;
+    if (/[^a-zA-Z0-9]/.test(password)) complexity++;
 
+    if (complexity < 3) {
+      errors.push(
+        "Password must contain at least 3 of the following: lowercase letters, uppercase letters, numbers, special characters"
+      );
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
+  }
+
+  /**
+   * Generate a random password that meets Entra ID requirements
+   * @param {number} length - Password length (default 16)
+   * @returns {string} Generated password
+   */
+  generatePassword(length = 16) {
+    const lowercase = "abcdefghijklmnopqrstuvwxyz";
+    const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const numbers = "0123456789";
+    const special = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+
+    // Ensure at least one character from each category
+    let password = "";
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+    password += special[Math.floor(Math.random() * special.length)];
+
+    // Fill the rest with random characters
+    const allChars = lowercase + uppercase + numbers + special;
+    for (let i = password.length; i < length; i++) {
+      password += allChars[Math.floor(Math.random() * allChars.length)];
+    }
+
+    // Shuffle the password
+    return password
+      .split("")
+      .sort(() => Math.random() - 0.5)
+      .join("");
+  }
+
+  /**
+   * Check if Graph client is connected and working
+   * @returns {Promise<boolean>} Whether connection is healthy
+   */
+  async healthCheck() {
     try {
-      await client.api("/me/changePassword").post({
-        currentPassword,
-        newPassword,
-      });
-
-      logger.info("Password changed via delegated access token");
-      return {
-        success: true,
-        message: "Password changed successfully",
-      };
+      await this.client.api("/organization").get();
+      return true;
     } catch (error) {
-      logger.error("Failed to change password with access token", error);
-      throw error;
+      logger.error("Graph Service health check failed", error);
+      return false;
     }
   }
 }
