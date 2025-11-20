@@ -5,7 +5,7 @@ const router = express.Router();
 
 router.post(
   "/check-dummy-user-first-sign-in",
-  authController.checkDummyUserFirstSignIn
+  authController.checkDummyUserFirstSignInAttributeCollectionStart
 );
 
 export default router;
