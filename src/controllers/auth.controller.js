@@ -45,7 +45,7 @@ class AuthController {
 
   checkDummyUserFirstSignIn = async (req, res) => {
     try {
-      logger.info("=== Received Authentication Request ===");
+      logger.info("=== Received Token Issuance Request ===");
       logger.info("Request Body:", req.body);
 
       const authEvent = req.body;
@@ -53,22 +53,26 @@ class AuthController {
       // Extract user information
       const userId = authEvent?.data?.authenticationContext?.user?.id;
       const userEmail = authEvent?.data?.authenticationContext?.user?.mail;
-      const attributes = authEvent?.data?.userSignUpInfo?.attributes || {};
+      const userPrincipalName =
+        authEvent?.data?.authenticationContext?.user?.userPrincipalName;
 
-      logger.info(`User Details - ID: ${userId}, Email: ${userEmail}`);
+      logger.info(
+        `User Details - ID: ${userId}, Email: ${userEmail}, UPN: ${userPrincipalName}`
+      );
 
-      // Find extension attribute 1
+      // For token issuance, extension attributes are in the user object
       let extensionAttr1 = null;
       let extensionAttrKey = null;
 
-      for (const [key, value] of Object.entries(attributes)) {
-        // Check for various possible naming conventions
+      const userObject = authEvent?.data?.authenticationContext?.user || {};
+
+      for (const [key, value] of Object.entries(userObject)) {
         if (
           key.toLowerCase().includes("extensionattribute1") ||
           key.toLowerCase().includes("extension_attribute_1") ||
           key.toLowerCase().includes("extension_attribute1")
         ) {
-          extensionAttr1 = value?.value;
+          extensionAttr1 = value;
           extensionAttrKey = key;
           break;
         }
@@ -93,63 +97,49 @@ class AuthController {
         );
 
         if (isFirstSignIn) {
-          logger.info("🚫 BLOCKING USER - Dummy user attempting first sign-in");
+          logger.info("🚫 BLOCKING USER - Adding block claim to token");
 
-          // Return block page response
+          // Add blocking claims to token
+          // Your application MUST check these claims and deny access
           const blockResponse = {
-            status: "blocked",
-            statusCode: 403,
-            message: "Dummy user blocked on first sign-in",
-            user: {
-              id: userId,
-              email: userEmail,
-            },
             data: {
-              "@odata.type":
-                "microsoft.graph.onAttributeCollectionSubmitResponseData",
+              "@odata.type": "microsoft.graph.onTokenIssuanceStartResponseData",
               actions: [
                 {
                   "@odata.type":
-                    "microsoft.graph.attributeCollectionSubmit.showBlockPage",
-                  title: "Access Denied",
-                  message:
-                    "Dummy user accounts are restricted from signing in for the first time. Please contact your system administrator for assistance.",
+                    "microsoft.graph.tokenIssuanceStart.provideClaimsForToken",
+                  claims: {
+                    block_signin: "true",
+                    block_reason:
+                      "Dummy user cannot sign in for the first time",
+                    user_status: "blocked",
+                  },
                 },
               ],
             },
           };
 
-          logger.info("Block Response Sent:", blockResponse);
-          return res.status(403).json(blockResponse);
+          logger.info("Block Claims Added to Token:", blockResponse);
+          return res.status(200).json(blockResponse);
         } else {
           logger.info("✓ Allowing sign-in - User has signed in before");
         }
 
-        // Track this sign-in (mark user as having signed in)
+        // Track this sign-in
         signedInUsers.add(userId);
-        logger.info(`User ${userId} added to signed-in tracking`);
+        logger.info(`User ${userId} marked as signed in`);
       } else {
-        logger.info(
-          "✓ Normal user (not a dummy user) - continuing with default behavior"
-        );
+        logger.info("✓ Normal user (not a dummy user) - continuing");
       }
 
-      // Continue with normal authentication flow
+      // Continue with normal token issuance (no custom claims)
       const continueResponse = {
-        status: "success",
-        statusCode: 200,
-        message: "Authentication allowed",
-        user: {
-          id: userId,
-          email: userEmail,
-        },
         data: {
-          "@odata.type":
-            "microsoft.graph.onAttributeCollectionSubmitResponseData",
+          "@odata.type": "microsoft.graph.onTokenIssuanceStartResponseData",
           actions: [
             {
               "@odata.type":
-                "microsoft.graph.attributeCollectionSubmit.continueWithDefaultBehavior",
+                "microsoft.graph.tokenIssuanceStart.provideClaimsForToken",
             },
           ],
         },
@@ -158,18 +148,17 @@ class AuthController {
       logger.info("✓ Continue Response Sent:", continueResponse);
       return res.status(200).json(continueResponse);
     } catch (error) {
-      logger.error("❌ ERROR occurred:", error);
-      logger.error("Error stack:", error.stack);
+      logger.info("❌ ERROR occurred:", error);
+      console.error("Error stack:", error.stack);
 
-      // On error, continue with default behavior to avoid blocking legitimate users
+      // On error, continue to avoid blocking legitimate users
       const errorResponse = {
         data: {
-          "@odata.type":
-            "microsoft.graph.onAttributeCollectionSubmitResponseData",
+          "@odata.type": "microsoft.graph.onTokenIssuanceStartResponseData",
           actions: [
             {
               "@odata.type":
-                "microsoft.graph.attributeCollectionSubmit.continueWithDefaultBehavior",
+                "microsoft.graph.tokenIssuanceStart.provideClaimsForToken",
             },
           ],
         },
