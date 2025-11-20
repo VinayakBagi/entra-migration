@@ -50,7 +50,6 @@ class AuthController {
 
       const authEvent = req.body;
 
-      // Extract user information
       const userId = authEvent?.data?.authenticationContext?.user?.id;
       const userEmail = authEvent?.data?.authenticationContext?.user?.mail;
       const userPrincipalName =
@@ -60,7 +59,6 @@ class AuthController {
         `User Details - ID: ${userId}, Email: ${userEmail}, UPN: ${userPrincipalName}`
       );
 
-      // For token issuance, extension attributes are in the user object
       let extensionAttr1 = null;
       let extensionAttrKey = null;
 
@@ -82,13 +80,11 @@ class AuthController {
         `Extension Attribute Found - Key: ${extensionAttrKey}, Value: ${extensionAttr1}`
       );
 
-      // Check if this is a dummy user (extension attribute 1 = "Y")
       if (extensionAttr1 && extensionAttr1.toString().toUpperCase() === "Y") {
         logger.info(
           "✓ User identified as DUMMY USER (Extension Attribute 1 = Y)"
         );
 
-        // Check if this is their first sign-in
         const isFirstSignIn = !signedInUsers.has(userId);
         logger.info(
           `First Sign-In Check: ${
@@ -99,8 +95,6 @@ class AuthController {
         if (isFirstSignIn) {
           logger.info("🚫 BLOCKING USER - Adding block claim to token");
 
-          // Add blocking claims to token
-          // Your application MUST check these claims and deny access
           const blockResponse = {
             data: {
               "@odata.type": "microsoft.graph.onTokenIssuanceStartResponseData",
@@ -125,7 +119,6 @@ class AuthController {
           logger.info("✓ Allowing sign-in - User has signed in before");
         }
 
-        // Track this sign-in
         signedInUsers.add(userId);
         logger.info(`User ${userId} marked as signed in`);
       } else {
@@ -140,6 +133,7 @@ class AuthController {
             {
               "@odata.type":
                 "microsoft.graph.tokenIssuanceStart.provideClaimsForToken",
+              claims: {},
             },
           ],
         },
@@ -151,7 +145,7 @@ class AuthController {
       logger.info("❌ ERROR occurred:", error);
       console.error("Error stack:", error.stack);
 
-      // On error, continue to avoid blocking legitimate users
+      // FIXED: Added claims: {}
       const errorResponse = {
         data: {
           "@odata.type": "microsoft.graph.onTokenIssuanceStartResponseData",
@@ -159,6 +153,7 @@ class AuthController {
             {
               "@odata.type":
                 "microsoft.graph.tokenIssuanceStart.provideClaimsForToken",
+              claims: {},
             },
           ],
         },
