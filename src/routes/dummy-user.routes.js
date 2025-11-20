@@ -8,4 +8,8 @@ router.post(
   authController.checkDummyUserFirstSignInAttributeCollectionStart
 );
 
+router.post(
+  "/check-dummy-user-first-sign-in-token-issuance-start",
+  authController.checkDummyUserFirstSignInTokenIssuanceStart
+);
 export default router;
