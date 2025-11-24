@@ -1,5 +1,6 @@
 import authService from "../services/auth.service.js";
 import { logger } from "../utils/logger.js";
+import graphService from "../services/graph.service.js";
 
 // Track users who have signed in (for dummy user check)
 const signedInUsers = new Set();
