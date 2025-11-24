@@ -256,7 +256,20 @@ class GraphService {
     // Log all available properties for debugging
     logger.info("Available user properties:", Object.keys(userData));
 
-    // Look for extension attribute in various possible formats
+    // FIRST: Check onPremisesExtensionAttributes (this is where it actually is!)
+    if (userData.onPremisesExtensionAttributes) {
+      const onPremAttrs = userData.onPremisesExtensionAttributes;
+      logger.info("onPremisesExtensionAttributes found:", onPremAttrs);
+
+      if (onPremAttrs.extensionAttribute1) {
+        logger.info(
+          `✓ Found extension attribute in onPremisesExtensionAttributes: extensionAttribute1 = ${onPremAttrs.extensionAttribute1}`
+        );
+        return onPremAttrs.extensionAttribute1;
+      }
+    }
+
+    // SECOND: Look for extension attribute in root level (fallback)
     for (const [key, value] of Object.entries(userData)) {
       const keyLower = key.toLowerCase();
 
