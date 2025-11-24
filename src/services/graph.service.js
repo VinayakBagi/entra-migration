@@ -164,14 +164,54 @@ class GraphService {
    * @param {string} userId - Entra user ID
    * @returns {Promise<Object|null>} User object with all properties or null
    */
+  /**
+   * Get user's extension attributes by user ID
+   * For Entra External ID, we need to query schema extensions
+   * @param {string} userId - Entra user ID
+   * @returns {Promise<Object|null>} User object with all properties or null
+   */
   async getUserExtensionAttributes(userId) {
     try {
       logger.info(`Fetching extension attributes for user: ${userId}`);
 
-      // Fetch user with all properties
-      const user = await this.client.api(`/users/${userId}`).select("*").get();
+      // First, get the list of schema extensions to know what to query for
+      const schemasResult = await this.client
+        .api("/schemaExtensions")
+        .filter(
+          "id eq 'extdxhqvi1v_extensionAttribute1' or startswith(id, 'ext')"
+        )
+        .get();
 
-      logger.info(`Successfully fetched user data for: ${userId}`);
+      logger.info(
+        "Available schema extensions:",
+        JSON.stringify(schemasResult.value, null, 2)
+      );
+
+      // Build select query with all possible extension properties
+      let selectFields = "id,mail,userPrincipalName,displayName";
+
+      if (schemasResult.value && schemasResult.value.length > 0) {
+        schemasResult.value.forEach((schema) => {
+          if (schema.properties) {
+            schema.properties.forEach((prop) => {
+              selectFields += `,${schema.id}_${prop.name}`;
+            });
+          }
+        });
+      }
+
+      logger.info(`Querying user with select: ${selectFields}`);
+
+      // Fetch user with extension properties
+      const user = await this.client
+        .api(`/users/${userId}`)
+        .select(selectFields)
+        .get();
+
+      logger.info(
+        `Successfully fetched user data:`,
+        JSON.stringify(user, null, 2)
+      );
       return user;
     } catch (error) {
       logger.error(
@@ -182,9 +222,18 @@ class GraphService {
         logger.error(`Status code: ${error.statusCode}`);
       }
       if (error.body) {
-        logger.error(`Error body:`, error.body);
+        logger.error(`Error body:`, JSON.stringify(error.body, null, 2));
       }
-      return null;
+
+      // Fallback: try getting user with all fields
+      try {
+        logger.info("Attempting fallback query with all fields...");
+        const user = await this.client.api(`/users/${userId}`).get();
+        return user;
+      } catch (fallbackError) {
+        logger.error("Fallback query also failed:", fallbackError);
+        return null;
+      }
     }
   }
 
