@@ -159,6 +159,98 @@ class GraphService {
   }
 
   /**
+   * Get user's extension attributes by user ID
+   * Fetches all user properties including extension attributes
+   * @param {string} userId - Entra user ID
+   * @returns {Promise<Object|null>} User object with all properties or null
+   */
+  async getUserExtensionAttributes(userId) {
+    try {
+      logger.info(`Fetching extension attributes for user: ${userId}`);
+
+      // Fetch user with all properties
+      const user = await this.client.api(`/users/${userId}`).select("*").get();
+
+      logger.info(`Successfully fetched user data for: ${userId}`);
+      return user;
+    } catch (error) {
+      logger.error(
+        `Error fetching extension attributes for user ${userId}:`,
+        error
+      );
+      if (error.statusCode) {
+        logger.error(`Status code: ${error.statusCode}`);
+      }
+      if (error.body) {
+        logger.error(`Error body:`, error.body);
+      }
+      return null;
+    }
+  }
+
+  /**
+   * Extract extension attribute 1 from user data
+   * Looks for extensionAttribute1 in various naming formats
+   * @param {Object} userData - User object from Graph API
+   * @returns {string|null} Extension attribute value or null
+   */
+  extractExtensionAttribute1(userData) {
+    if (!userData) {
+      logger.info("No user data provided to extract extension attribute");
+      return null;
+    }
+
+    logger.info("Searching for extensionAttribute1 in user data...");
+
+    // Log all available properties for debugging
+    logger.info("Available user properties:", Object.keys(userData));
+
+    // Look for extension attribute in various possible formats
+    for (const [key, value] of Object.entries(userData)) {
+      const keyLower = key.toLowerCase();
+
+      // Check for various naming patterns
+      if (
+        keyLower === "extensionattribute1" ||
+        keyLower === "extension_attribute_1" ||
+        keyLower === "extension_attribute1" ||
+        keyLower.match(/^extension_[a-f0-9]{32}_extensionattribute1$/i) ||
+        keyLower.includes("extensionattribute1")
+      ) {
+        logger.info(`✓ Found extension attribute: ${key} = ${value}`);
+        return value;
+      }
+    }
+
+    logger.info("Extension attribute 1 not found in user data");
+    return null;
+  }
+
+  /**
+   * Get user with extension attributes by email
+   * Convenience method to fetch user by email and get extension attributes
+   * @param {string} email - User's email address
+   * @returns {Promise<Object|null>} User object with extension attributes or null
+   */
+  async getUserWithExtensionsByEmail(email) {
+    try {
+      const user = await this.getUserByEmail(email);
+      if (!user || !user.id) {
+        return null;
+      }
+
+      // Fetch full user data with extension attributes
+      return await this.getUserExtensionAttributes(user.id);
+    } catch (error) {
+      logger.error(
+        `Error fetching user with extensions by email: ${email}`,
+        error
+      );
+      return null;
+    }
+  }
+
+  /**
    * Update user properties
    * @param {string} userId - Entra user ID
    * @param {Object} updates - Properties to update
