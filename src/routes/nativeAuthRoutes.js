@@ -168,7 +168,7 @@ router.post("/verify-otp", async (req, res) => {
         client_id: CLIENT_ID,
         continuation_token: continuationToken,
         grant_type: "oob",
-        oob_code: otp,
+        oob: otp,
       }),
     });
 
