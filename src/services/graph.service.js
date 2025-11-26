@@ -171,11 +171,6 @@ class GraphService {
       // First, list all available schema extensions
       try {
         const schemasResult = await this.client.api("/schemaExtensions").get();
-
-        logger.info(
-          "Available schema extensions:",
-          JSON.stringify(schemasResult.value, null, 2)
-        );
       } catch (schemaError) {
         logger.error("Error listing schema extensions:", schemaError.message);
       }
