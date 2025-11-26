@@ -236,8 +236,25 @@ router.post("/submit-password", async (req, res) => {
 
     if (!submitResponse.ok) {
       logger.error("Password submission failed:", submitData);
+
+      // Check for specific password policy errors
+      let errorMessage =
+        submitData.error_description || "Failed to reset password";
+
+      if (submitData.suberror === "password_banned") {
+        errorMessage =
+          "This password is too common or has been compromised. Please choose a stronger, more unique password.";
+      } else if (
+        submitData.error_description &&
+        submitData.error_description.includes("password")
+      ) {
+        // Keep the original message for other password-related errors
+        errorMessage = submitData.error_description.split("Trace ID")[0].trim();
+      }
+
       return res.status(400).json({
-        error: submitData.error_description || "Failed to reset password",
+        error: errorMessage,
+        suberror: submitData.suberror,
       });
     }
 
