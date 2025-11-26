@@ -1,7 +1,7 @@
 import express from "express";
 import fetch from "node-fetch";
 import { logger } from "../utils/logger.js";
-import graphService from "../services/graphService.js";
+import graphService from "../services/graph.service.js";
 
 const router = express.Router();
 
