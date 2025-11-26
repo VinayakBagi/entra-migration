@@ -6,10 +6,15 @@ import graphService from "../services/graph.service.js";
 const router = express.Router();
 
 // Configuration from environment variables
-const TENANT_SUBDOMAIN = process.env.ENTRA_TENANT_SUBDOMAIN;
-const TENANT_DOMAIN = process.env.ENTRA_TENANT_DOMAIN;
-const CLIENT_ID =
-  process.env.ENTRA_NATIVE_AUTH_CLIENT_ID || process.env.ENTRA_CLIENT_ID;
+// const TENANT_SUBDOMAIN = process.env.ENTRA_TENANT_SUBDOMAIN;
+// const TENANT_DOMAIN = process.env.ENTRA_TENANT_NAME;
+// const CLIENT_ID =
+//   process.env.ENTRA_NATIVE_AUTH_CLIENT_ID || process.env.ENTRA_CLIENT_ID;
+// const BASE_URL = `https://${TENANT_SUBDOMAIN}.ciamlogin.com/${TENANT_DOMAIN}/resetpassword/v1.0`;
+
+const TENANT_SUBDOMAIN = "devmtyfranchise";
+const TENANT_DOMAIN = "devmtyfranchise.onmicrosoft.com";
+const CLIENT_ID = "bc8c1d14-0092-43df-b75a-8b0b6bc997d9";
 const BASE_URL = `https://${TENANT_SUBDOMAIN}.ciamlogin.com/${TENANT_DOMAIN}/resetpassword/v1.0`;
 
 /**
