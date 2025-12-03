@@ -762,6 +762,49 @@ class GraphService {
   }
 
   // ============================================
+  // EMAIL MANAGEMENT
+  // ============================================
+
+  /**
+   * Send email on behalf of a user
+   * @param {string} userPrincipalName - User's principal name
+   * @param {Object} emailData - Email data object
+   * @param {Object} emailData.message - Message object
+   * @param {Object} emailData.message.subject - Email subject
+   * @param {Object} emailData.message.body - Email body with content and contentType
+   * @param {Array} emailData.message.toRecipients - Array of recipient objects
+   * @param {boolean} emailData.saveToSentItems - Whether to save to sent items (default: true)
+   * @returns {Promise<Object>} Result object
+   */
+  async sendMail(userPrincipalName, emailData) {
+    if (!userPrincipalName) {
+      throw new Error("userPrincipalName is required to send email");
+    }
+
+    if (!emailData || !emailData.message) {
+      throw new Error("Email message data is required");
+    }
+
+    try {
+      await this.client
+        .api(`/users/${userPrincipalName}/sendMail`)
+        .post(emailData);
+
+      logger.info(`Email sent successfully for user: ${userPrincipalName}`);
+      return {
+        success: true,
+        message: "Email sent successfully",
+      };
+    } catch (error) {
+      logger.error(
+        `Failed to send email for user: ${userPrincipalName}`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  // ============================================
   // UTILITY METHODS
   // ============================================
 
